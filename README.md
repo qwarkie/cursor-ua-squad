@@ -1,60 +1,76 @@
 # fintech-helper
 
-Point a phone camera at an object in a shop and find out what buying it would cost
-**you** — not its price tag, but its price measured against your own income: the share of
-one month's disposable money, the hours of work behind it, the months of saving it adds.
-
-Every scan is saved to history, so spending patterns emerge without manual receipts.
+Tell it what you earn and what it goes on, then point a phone camera at something in a
+shop. It answers what that thing costs **you**: the share of your spare money, the hours of
+work behind it, and how many weeks of saving it adds.
 
 ## The problem
 
-A price tag is a number without a denominator. `$329` means something entirely different
-to two people in the same queue, and neither of them can work out which one they are in
-the four seconds before they tap the card. Budgeting apps answer the question afterwards,
-from bank statements — which is the one moment the answer cannot change the outcome.
+A price tag is a number without a denominator. `$329` means something entirely different to
+two people in the same queue, and neither of them can work out which one they are in the
+four seconds before they tap the card. Budgeting apps answer afterwards, from bank
+statements, which is the one moment the answer cannot change the outcome.
 
-This app answers it in front of the shelf, from a photo, in one tap.
+This app answers it in front of the shelf.
 
 ## How it works
 
-1. **Once** — you enter net monthly income, committed monthly expenses, and current
-   savings. Stored on the device, not on a server.
-2. **In the shop** — you photograph the object. A vision model reads it into a structured
-   record: name, brand, category, condition, an estimated price and how confident it is in
-   that estimate.
-3. **Optionally** — the estimate is checked against live web results, and the sources come
-   back as clickable citations. A claim with no source fails validation, so the evidence
-   trail is real rather than decorative.
-4. **The verdict** — the backend computes what this price does to your month and returns
-   one of five bands, from *easy* to *out of reach*, with the arithmetic behind it and one
-   concrete next step.
-5. **After** — the scan is saved. The history is grouped by category and rendered as
-   statistics: where the money goes, what you talked yourself out of, how the verdicts
-   trend.
+**1. Say what the month looks like.** A chat, typed or spoken. "I take home 4200, rent is
+1500, groceries about 600, and I have 800 saved." A model pulls the figures out of that and
+keeps asking for what is still missing. It is instructed not to estimate a figure you did
+not give, and not to do any arithmetic on the ones you did.
 
-The important part of step 4: **every number is computed in Python from your own figures,
-and the model is handed those numbers and asked only for the words.** A model allowed to
-do the arithmetic will be confidently wrong about a month count, and a confidently wrong
-month count is the one thing a money tool cannot produce.
+**2. See where the salary goes.** Take home, committed, left over, and a donut of the split.
+The categories are a closed list, so the chart does not fragment into singletons.
+
+**3. Photograph the thing you want.** Camera, or a photo from the library. A vision model
+reads it into a record: name, brand, category, condition, an estimated price, how confident
+it is in that price, and what the estimate is based on. If it cannot price what it sees, it
+returns nothing rather than guessing, and the app asks you to type the price.
+
+**4. Get the verdict and the plan.** One of five bands from *easy* to *out of reach*, the
+arithmetic behind it, and a saving plan: an amount per week, the number of weeks, and the
+shortfall it covers.
+
+### Every number is computed, not generated
+
+The model's only job is words. `compute()` in `backend/affordability.py` is pure arithmetic
+on your own figures and is the single source of every figure on screen:
+
+```
+disposable = income - expenses          capacity  = disposable x commit_share (30%)
+buffer     = expenses x 1 month         spendable = max(0, savings - buffer)
+shortfall  = max(0, price - spendable)  weekly    = capacity / 4.33
+weeks      = ceil(shortfall / weekly)   work_hours = price / (income / 173.33)
+
+verdict = price / disposable   <=0.10 easy · <=0.35 affordable · <=1.0 stretch
+                               <=3.0 plan_it · above that out_of_reach
+```
+
+The model receives those results and is told to quote them. It is told this because the
+first version was allowed to work out the plan itself and produced "set aside 522 until you
+reach 329": it anchored on the monthly capacity instead of the target. A money tool can be
+wrong, but it cannot be confidently wrong about a month count.
 
 ## Stack
 
 | Layer | Choice |
 |---|---|
 | UI | React 19, TypeScript 5.9 (strict), Vite 8, Tailwind CSS v4 |
-| Components | Untitled UI on react-aria-components — accessible primitives, design tokens for light and dark |
-| API | FastAPI 0.140, Pydantic v2, uvicorn |
-| Vision + reasoning | Anthropic `claude-sonnet-5` → `claude-haiku-4-5` → OpenAI `gpt-4o`, structured output validated against a Pydantic model |
-| Price evidence | Tavily retrieval, citations enforced by schema |
-| Storage | `localStorage` (profile, validated with Zod on every read) · SQLite (scan history) |
+| Components | Untitled UI on react-aria-components, styled from design tokens |
+| API | FastAPI 0.140, Pydantic v2, uvicorn, Python 3.14 |
+| Vision and reasoning | Anthropic `claude-sonnet-5` → `claude-haiku-4-5` → OpenAI `gpt-4o`, structured output validated against a Pydantic model |
+| Voice input | Groq `whisper-large-v3-turbo`, transcribed server-side so the key never reaches the browser |
+| Storage | `localStorage`, validated with Zod on every read |
 | Charts | Recharts, coloured from the running design tokens |
 | Dev loop | One command starts both servers over LAN HTTPS and prints a QR code for the phone |
 
-Python 3.14, Node 20+. No router, no state library, no ORM — see
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#what-is-deliberately-absent).
+The app ships locked to the dark theme (`class="dark-mode"` on `<html>`); the tokens carry
+both. No router, no state library, no ORM, no tests, no CI, no containers, and nothing is
+mocked anywhere. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#deliberately-minimal).
 
-LAN HTTPS is not a nicety: `navigator.mediaDevices` does not exist on a plain-http LAN
-address, so without it the camera cannot be tested on a real phone at all.
+LAN HTTPS is not a nicety. `navigator.mediaDevices` does not exist on a plain-http LAN
+address, so without it neither the camera nor the microphone can be tested on a real phone.
 
 ## Quick start
 
@@ -66,64 +82,98 @@ make dev                                # both servers, LAN URL, QR code
 
 | | |
 |---|---|
-| `https://localhost:5173` | the app |
-| `https://<lan-ip>:5173` | the same app from any phone on the Wi-Fi — scan the QR |
+| `https://localhost:5173` | the app (Vite takes the next free port if 5173 is busy) |
+| `https://<lan-ip>:5173` | the same app from any phone on the Wi-Fi, via the QR code |
 | `http://localhost:8000/api/health` | backend status; `/docs` for the OpenAPI page |
 
-`ANTHROPIC_API_KEY` is required — without it there is nothing to read the photo. The other
-two are optional and degrade to one named, visible failure instead of a dead app:
-`OPENAI_API_KEY` is the third link in the model chain, and without `TAVILY_API_KEY` the
-price-evidence panel reports `search_key_missing` and says so on screen.
+**Keys.** `ANTHROPIC_API_KEY` is required: without it nothing reads your figures or the
+photo. The rest are optional, and each one missing costs exactly one feature, loudly:
+
+| Key | Without it |
+|---|---|
+| `OPENAI_API_KEY` | the model chain loses its third link and stops after the two Anthropic models |
+| `GROQ_API_KEY` | the mic button goes dark and says voice input is unconfigured; typing still works |
+| `TAVILY_API_KEY` | nothing in the app changes, see *Not wired up* below |
 
 `make` on its own lists the other entry points (`web`, `api`, `qr`, `build`, `typecheck`,
 `clean`). Phone cannot reach it → [scripts/README.md](scripts/README.md).
 
 ## API
 
-Every route lives under `/api`, which Vite proxies to FastAPI — so no IP is ever hardcoded
+Every route lives under `/api`, which Vite proxies to FastAPI, so no IP is ever hardcoded
 and the same build works on localhost, on the LAN and behind a tunnel.
 
-| Route | Does |
-|---|---|
-| `POST /api/vision/extract` | photo → `ItemReading`. Registered shapes: `GET /api/vision/schemas` |
-| `POST /api/vision/detect` | labelled regions, boxes normalised to `[0..1]` for an overlay |
-| `POST /api/affordability/assess` | `ItemReading` + profile → verdict, arithmetic, advice |
-| `POST /api/search` · `/api/search/ground` | retrieval, then an answer whose every claim carries a source index |
-| `/api/items` | scan history — `POST`, `GET`, `DELETE`, namespaced by collection |
-| `GET /api/health` | 503 and the missing variable's **name** when configuration is incomplete |
+| Route | Does | Used by the app |
+|---|---|---|
+| `POST /api/budget/breakdown` | chat transcript → income, savings, categories, chart-ready split | yes |
+| `POST /api/voice/transcribe` | recorded clip → text, via Groq | yes |
+| `GET /api/voice/status` | whether voice is configured, so the mic can say why it is off | yes |
+| `POST /api/vision/extract` | photo → `ItemReading`. Registered shapes: `GET /api/vision/schemas` | yes |
+| `POST /api/affordability/assess` | reading + profile → verdict, arithmetic, saving plan | yes |
+| `GET /api/health` | 503 and the missing variable's **name** when configuration is incomplete | yes |
+| `POST /api/vision/detect` | labelled regions, boxes normalised to `[0..1]` | no |
+| `POST /api/search` · `/api/search/ground` | retrieval, then an answer whose every claim carries a source index | no |
+| `/api/items` | generic SQLite-backed rows, namespaced by collection | no |
+
+## Not wired up
+
+Mounted and working if called directly, but no screen calls them. Listed here so the
+feature list above stays honest:
+
+- **Price evidence from the live web.** `search_router.py` plus `src/lib/search/` grounds a
+  claim against Tavily results and rejects any claim without a source index. Nothing in the
+  UI asks it, so the price you see is the model's estimate or the one you typed.
+- **Scan history and statistics.** `store_router.py` keeps rows in SQLite and
+  `ScanRecord` in the contract describes the shape a saved scan would take. Nothing saves
+  one. Verdicts are not kept: reload and the last one is gone.
+- **Bounding boxes on the photo.** `/api/vision/detect` and `BoxOverlay` exist; the scan
+  panel shows the photo plain.
+
+What *is* persisted: the conversation and the latest budget split, in `localStorage`. A
+reload keeps both. A payload written by an older build surfaces as a named error state
+rather than as `undefined` inside a component.
 
 ## Layout
 
 ```
 src/
-  App.tsx              the screen
-  types/contract.ts    the only frontend/backend seam — mirrors the Pydantic models
+  App.tsx                    state, and the single column everything stacks in
+  types/contract.ts          the one frontend/backend seam; mirrors the Pydantic models
+  lib/records.ts             Zod schemas for anything persisted
+  components/app/
+    ChatPanel.tsx            transcript, composer, suggestions
+    MicButton.tsx            record, transcribe, and every reason it can refuse
+    BreakdownPanel.tsx       the three figures and the donut
+    ScanPanel.tsx            viewfinder, upload, the reading, the price box
+    VerdictCard.tsx          band, arithmetic, saving plan, alternatives
+  components/base|foundations  Untitled UI primitives, vendored
   lib/
-    camera/            capture, downscale, ten named permission failures
-    vision/            client for the two vision routes, plus the box overlay
-    search/            grounded answers and the citation list
-    store/             profile in localStorage, history through the API
-    dataviz/           stat tiles, sparklines, four charts
-    ui-states/         the async-state union every request goes through
-  components/          Untitled UI primitives
-  styles/              design tokens; light and dark
+    camera/                  getUserMedia lifecycle and ten named failure kinds
+    vision/                  client for the vision routes
+    mic/                     MediaRecorder capture, container choice, level meter
+    store/                   typed localStorage with schema validation on read
+    dataviz/                 stat tiles and charts, themed from the tokens
+    ui-states/               the async-state union every request goes through
+    search/                  grounded answers and citations (not wired up)
+  styles/                    design tokens, light and dark
 backend/
-  main.py              app shell, CORS for private LAN ranges, /api/health
-  settings.py          the one place that loads .env; port, origins, env contract
-  vision_router.py     ItemReading and the extract route
-  affordability.py     the formula and the advice call
-  search_router.py     retrieval; ground.py enforces the citations
-  store_router.py      SQLite-backed items; db.py owns the connection
-  provider.py          model registry and the fallback chain
-  clients.py           one function per provider SDK
-  errors.py            named failures → distinct HTTP statuses
-  schema.py            Pydantic JSON Schema → OpenAI's strict subset
+  main.py                    app shell, CORS for private LAN ranges, /api/health
+  settings.py                the one place that loads .env; port, origins, env contract
+  budget.py                  chat → figures, and the split arithmetic
+  voice.py                   Groq Whisper upload
+  vision_router.py           ItemReading and the extract route; detect.py alongside
+  affordability.py           compute() and the advice call
+  provider.py                model registry and the fallback chain; clients.py per SDK
+  errors.py                  named failures → distinct HTTP statuses
+  schema.py                  Pydantic JSON Schema → OpenAI's strict subset
+  search_router.py           retrieval; ground.py enforces the citations (not wired up)
+  store_router.py            SQLite rows; db.py owns the connection (not wired up)
 ```
 
 ## Failure behaviour
 
-There are no mocks, no fixtures and no demo mode anywhere in this repository. When
-something is not configured or a provider is down, the app says which thing and why:
+No mocks, no fixtures, no demo mode anywhere in this repository. When something is not
+configured or a provider is down, the app names it:
 
 | Situation | Status | `code` |
 |---|---|---|
@@ -131,7 +181,15 @@ something is not configured or a provider is down, the app says which thing and 
 | Every model rate-limited or down | 502 | `provider_unavailable` (+ `Retry-After`) |
 | No model answered inside 60s | 504 | `upstream_timeout` |
 | Model answered, the schema rejected it | 500 | `parse_failure` |
-| Expenses at or above income — no disposable income to reason about | 422 | `impossible_budget` |
+| Expenses at or above income, so there is no spare money to measure against | 422 | `impossible_budget` |
+| Category names and amounts came back at different lengths | 502 | `inconsistent_budget` |
+| `GROQ_API_KEY` missing or rejected | 503 | `voice_key_missing` |
+| Recorded clip empty, or over 8 MB | 422 / 413 | `empty_clip` / `clip_too_large` |
+| Groq refused the clip, or was unreachable | 502 | `transcription_rejected` / `transcription_unreachable` |
 
-A visible, honest failure survives scrutiny. A fake success does not, and it takes the
-rest of the demo with it when someone asks one question about it.
+In the browser, every request goes through one discriminated union of six states, and the
+boundary component requires all of them, so a forgotten error branch is a compile error
+rather than a blank panel. A missing camera, an insecure origin and a denied permission are
+three different messages, each saying what still works without it.
+
+A visible failure for an honest reason survives scrutiny. A fake success does not.

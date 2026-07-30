@@ -1,0 +1,98 @@
+---
+description: "Project conventions — async state, failure handling, and styling."
+globs: **/*
+alwaysApply: true
+---
+
+# Conventions
+
+## Before writing code
+
+The capability you need almost certainly exists as a module. Check `kit/INDEX.md` — it maps
+input, processing and output to specific modules and gives wiring recipes. Do not design an
+architecture for something already solved there, and do not hand-roll a camera, a socket, a
+streaming parser or a 3D renderer.
+
+Short, concrete, and specific to this codebase. Follow them exactly.
+
+## Async state — non-negotiable
+
+Every async operation goes through `useAsync` from `src/lib/ui-states`. It returns a
+discriminated union: `idle | loading | error | empty | unsupported | success`.
+Render it through `<AsyncBoundary>` so every branch is handled.
+
+Never write a bare `try/catch` around a fetch and render only the success case.
+
+## Failure handling — never fake it
+
+- **Never return placeholder, mock, sample, or default data when something fails.**
+  No `catch { return [] }`, no `?? 'N/A'`, no fixtures, no `DEMO_MODE`.
+- A failure must surface as a typed error with a named code, and the UI must show it.
+- Backend: raise the named exceptions in `errors.py`. Never swallow an exception and
+  return `200` with an empty body.
+- A missing API key is a `503` with a clear message, not a silent success.
+- A missing browser capability (no mic, no camera, insecure context) is the
+  `unsupported` state with a stated reason and a working alternative — not a crash
+  and not a blank screen.
+
+## TypeScript
+
+- Imports at the top of the file only. Never inline `await import()` for convenience.
+- `switch` over a union must be exhaustive, with a `never` check in the default branch.
+- No `any`. Use `unknown` and narrow.
+- Discriminate on a literal `status`/`kind` field, never on the presence of a property.
+
+## Python
+
+- Type-hint every function signature.
+- Pydantic models for every request and response body.
+- Raise, don't return sentinels. No `return None` to signal an error.
+
+## Dependencies
+
+**Do not install packages.** If something appears to need a new dependency, stop and say
+so instead of adding it. Use what is already in `package.json` / `requirements.txt`.
+
+The common cases are decided in advance in `kit/RECIPES.md` — 3D, charts, maps, QR,
+realtime, on-device inference. Name the recipe; the person who owns `package.json` runs it.
+
+## Styling — theme tokens first, Tailwind second, vanilla CSS never
+
+The UI layer is Untitled UI React on Tailwind v4. Styling has one route in and it is not
+a stylesheet.
+
+1. **Reach for a component before styling anything.** `npx untitledui@latest add <name> -y`.
+   A styled div is a worse button than the button.
+2. **Then Tailwind utilities using semantic tokens** — `bg-primary`, `bg-secondary`,
+   `text-primary`, `text-tertiary`, `text-error-primary`, `border-secondary`,
+   `rounded-xl`, `text-display-xs`. Dark mode is already wired into every one of them.
+3. **Never a raw colour or size.** No `#0b0d10`, no `rgb(...)`, no arbitrary values like
+   `bg-[#111]` or `text-[13px]`. If a token seems missing, it almost certainly exists —
+   check `src/styles/theme.css`. If it genuinely does not, add it to `@theme` in
+   `src/styles/globals.css` under the divider, then use it by name.
+
+**Do not create `.css` files.** No CSS modules, no styled-components, no `<style>` blocks,
+no new stylesheet imports. `src/styles/globals.css` is the only place project CSS may be
+added, and only below the marked divider.
+
+`style={{...}}` is allowed for one thing: a value that is genuinely computed at runtime — a
+transform from a sensor reading, a position from a bounding box. Never for a colour, a
+spacing value, or anything a utility class expresses.
+
+**Vendored exceptions.** Modules copied from `kit/` ship their own `.css` (`states.css`,
+`camera.css`, `mic.css`, `overlay.css`, `filedrop.css`) so they work standalone outside this
+template. They stay as they are: do not extend them, do not add rules to them, and do not
+copy their pattern for new code. `src/styles/theme.css` is likewise vendored — regenerate it
+with `npx untitledui@latest upgrade`, never hand-edit it.
+
+- Every interactive element has a visible hover, focus, and disabled state.
+- Every list has a designed empty state. Never render a bare blank area.
+- Dark mode is toggled by the `.dark-mode` class on a root element, not by
+  `prefers-color-scheme`.
+
+## Output discipline
+
+- No `TODO`, `FIXME`, or commented-out code in what you write.
+- No decorative comments restating the code.
+- No defensive scaffolding for cases the code does not actually handle.
+- Prefer deleting a half-built thing over leaving it stubbed.

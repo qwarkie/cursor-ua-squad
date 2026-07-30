@@ -1,0 +1,41 @@
+// TypeScript config for everything under src/ (the browser side). Strict on purpose:
+// under time pressure the compiler is the only reviewer you have.
+// Change: nothing, normally. Add path aliases next to "@/*" - and mirror them in vite.config.ts.
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+    "jsx": "react-jsx",
+    "useDefineForClassFields": true,
+
+    "strict": true,
+    // Off because src/components/base/** is vendored from Untitled UI and is not
+    // ours to edit; an unused-import error there would block the build at 20:50.
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+
+    "noEmit": true,
+    // tsBuildInfoFile requires incremental; `tsc -b` implies it, the editor does not.
+    "incremental": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+
+    // No baseUrl: deprecated in TS 6, removed in TS 7. Without it, "paths" resolves
+    // relative to this file, which is what we want anyway. Mirror aliases in vite.config.ts.
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src"]
+}

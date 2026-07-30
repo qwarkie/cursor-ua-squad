@@ -1,0 +1,24 @@
+/* Points ui-states' standalone palette at the design tokens, so its error and loading
+   panels are the same product as everything around them — in light and dark both.
+   Imported after states.css in main.tsx, which is why these win.
+
+   Each token carries the module's own value as a fallback on purpose: Tailwind v4 only
+   emits a theme variable when some generated class references it, so a token no utility
+   in this project happens to use would otherwise resolve to nothing and blank the panel.
+   Delete a fallback the moment a utility of that family appears in the markup. */
+
+:root {
+  --ui-bg: var(--color-bg-primary, #0b0d12);
+  --ui-surface: var(--color-bg-secondary, #12151c);
+  --ui-surface-2: var(--color-bg-tertiary, #171b24);
+  --ui-border: var(--color-border-secondary, #262c38);
+  --ui-text: var(--color-text-primary, #e7ebf3);
+  --ui-text-dim: var(--color-text-secondary, #99a2b4);
+  --ui-text-faint: var(--color-text-tertiary, #6c7484);
+  --ui-accent: var(--color-text-brand-secondary, #6ea8fe);
+  --ui-accent-strong: var(--color-bg-brand-solid, #3d7dfd);
+  --ui-danger: var(--color-text-error-primary, #ff6b6b);
+  --ui-danger-bg: var(--color-bg-error-primary, #2a1315);
+  --ui-warn: var(--color-text-warning-primary, #ffc65c);
+  --ui-warn-bg: var(--color-bg-warning-primary, #2a2314);
+}

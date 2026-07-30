@@ -1,0 +1,21 @@
+# Backend dependencies. Floor + major ceiling only — never exact patch pins,
+# because a pinned patch that has no wheel for the local Python costs you 20 minutes.
+# Add capability deps (openai, httpx, numpy, ...) below as kit modules land.
+
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.30,<1.0
+pydantic>=2.9,<3.0
+pydantic-settings>=2.5,<3.0
+python-dotenv>=1.0,<2.0
+# requirements-llm.txt — the model layer only. Append to an existing backend:
+#   cat requirements-llm.txt >> backend/requirements.txt
+# Packages the template backend already pins are deliberately absent, so the
+# merged file has no duplicate lines.
+
+anthropic>=0.116.0,<1.0.0
+openai>=1.60.0,<2.0.0
+# requirements-search.txt — only what search_router.py needs. Append to the backend list:
+#   cat requirements-search.txt >> backend/requirements.txt
+# ground.py rides on kit/backend-llm, whose requirements-llm.txt you have already appended.
+
+httpx>=0.27,<1.0

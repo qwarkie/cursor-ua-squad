@@ -1,0 +1,126 @@
+/* camera.css — styles for CameraCapture.tsx. Dark, fullscreen-first, no framework. */
+/* COPY: next to CameraCapture.tsx (it does `import './camera.css'`). */
+/* CHANGE: --cam-accent for your brand, and .cam-stage aspect-ratio for a non-fullscreen embed. */
+
+.cam-root {
+  --cam-accent: #4f8cff;
+  --cam-bg: #0b0d12;
+  --cam-fg: #eef1f6;
+  --cam-muted: #98a2b3;
+  --cam-danger: #ff5c5c;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  color: var(--cam-fg);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.cam-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  max-height: 70vh;
+  background: #000;
+  border-radius: 16px;
+  overflow: hidden;
+  isolation: isolate;
+}
+@media (min-width: 700px) { .cam-stage { aspect-ratio: 4 / 3; } }
+
+.cam-video { width: 100%; height: 100%; object-fit: cover; display: block; background: #000; }
+
+.cam-title {
+  position: absolute; left: 0; right: 0; top: 12px; margin: 0;
+  text-align: center; font-size: 13px; letter-spacing: .02em;
+  color: #fff; text-shadow: 0 1px 6px rgba(0,0,0,.7);
+}
+
+.cam-overlay {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; padding: 20px; text-align: center;
+  background: rgba(11, 13, 18, .88); backdrop-filter: blur(6px);
+}
+.cam-overlay p { margin: 0; }
+.cam-overlay--error { gap: 8px; }
+.cam-err-title { font-size: 17px; font-weight: 650; }
+.cam-err-hint { color: var(--cam-muted); max-width: 34ch; }
+.cam-err-code {
+  font: 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--cam-danger); border: 1px solid rgba(255,92,92,.4);
+  padding: 4px 7px; border-radius: 999px;
+}
+.cam-err-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 6px; }
+
+.cam-spinner {
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 3px solid rgba(255,255,255,.22); border-top-color: var(--cam-accent);
+  animation: cam-spin .8s linear infinite;
+}
+.cam-spinner--sm { width: 14px; height: 14px; border-width: 2px; }
+@keyframes cam-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .cam-spinner { animation-duration: 2.4s; } }
+
+.cam-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.cam-count { font-variant-numeric: tabular-nums; color: var(--cam-muted); min-width: 44px; }
+
+.cam-shutter {
+  width: 68px; height: 68px; border-radius: 50%;
+  border: 4px solid #fff; background: transparent; padding: 0;
+  display: grid; place-items: center; cursor: pointer;
+  transition: transform .12s ease, opacity .12s ease;
+}
+.cam-shutter:active:not(:disabled) { transform: scale(.93); }
+.cam-shutter:disabled { opacity: .38; cursor: not-allowed; }
+.cam-shutter-dot { width: 52px; height: 52px; border-radius: 50%; background: #fff; }
+.cam-shutter-dot--busy { background: var(--cam-accent); animation: cam-pulse .7s ease-in-out infinite alternate; }
+@keyframes cam-pulse { to { transform: scale(.78); } }
+
+.cam-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 16px; border-radius: 10px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,.22); background: rgba(255,255,255,.06);
+  color: var(--cam-fg); font: inherit; font-weight: 600;
+}
+.cam-btn:hover:not(:disabled) { background: rgba(255,255,255,.12); }
+.cam-btn:disabled { opacity: .4; cursor: not-allowed; }
+.cam-btn--primary { background: var(--cam-accent); border-color: transparent; color: #05070c; }
+
+/* label must be a block box or `overflow`/`position` on it do nothing */
+.cam-fallback { position: relative; display: inline-block; overflow: hidden; cursor: pointer; }
+.cam-fallback input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+.cam-fallback span {
+  display: inline-block; padding: 10px 16px; border-radius: 10px;
+  border: 1px dashed rgba(255,255,255,.4); font-weight: 600;
+}
+/* the real input is invisible, so paint the focus ring on the visible span */
+.cam-fallback input:focus-visible + span { outline: 2px solid var(--cam-accent); outline-offset: 2px; }
+.cam-btn:focus-visible, .cam-shutter:focus-visible, .cam-thumb-x:focus-visible {
+  outline: 2px solid var(--cam-accent); outline-offset: 2px;
+}
+
+.cam-inline-error {
+  margin: 0; padding: 9px 12px; border-radius: 10px;
+  background: rgba(255,92,92,.12); border: 1px solid rgba(255,92,92,.4);
+  color: #ffc9c9; font-size: 13px;
+}
+
+.cam-strip { display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px 8px; min-height: 84px; align-items: center; }
+.cam-empty { margin: 0; color: var(--cam-muted); font-size: 13px; }
+
+.cam-thumb { position: relative; margin: 0; flex: 0 0 auto; width: 76px; }
+.cam-thumb img {
+  width: 76px; height: 76px; object-fit: cover; display: block;
+  border-radius: 10px; border: 1px solid rgba(255,255,255,.16);
+}
+.cam-thumb figcaption { font-size: 10px; color: var(--cam-muted); text-align: center; margin-top: 3px; }
+.cam-thumb-x {
+  position: absolute; top: -6px; right: -6px; width: 22px; height: 22px;
+  border-radius: 50%; border: none; cursor: pointer;
+  background: var(--cam-danger); color: #fff; font-size: 15px; line-height: 1;
+  display: grid; place-items: center;
+}
+.cam-thumb-x:disabled { opacity: .4; cursor: not-allowed; }

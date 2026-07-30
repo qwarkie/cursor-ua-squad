@@ -1,0 +1,31 @@
+// TypeScript config for the files that run in Node, not the browser: vite.config.ts.
+// Separate because it needs node types and must not see the DOM lib. Both configs are
+// checked by `npm run typecheck`; neither is a project reference (they do not emit).
+// Change: add a file to "include" if you add another build-time script.
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "types": ["node"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+
+    "noEmit": true,
+    // tsBuildInfoFile requires incremental; `tsc -b` implies it, the editor does not.
+    "incremental": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo"
+  },
+  "include": ["vite.config.ts"]
+}

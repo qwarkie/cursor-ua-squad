@@ -6,9 +6,7 @@
     },
     "backend": {
       "root": "backend",
-      "functions": {
-        "main.py": {}
-      }
+      "entrypoint": "main.py"
     }
   },
   "rewrites": [

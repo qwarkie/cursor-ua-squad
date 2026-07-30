@@ -59,6 +59,8 @@ export interface BudgetResponse {
   reply: string;
   currency: string;
   monthly_income: number;
+  /** Cash on hand, 0 until the user mentions any. Feeds `Profile.savings` on a scan. */
+  savings: number;
   slices: BudgetSlice[];
   spent: number;
   leftover: number;
@@ -156,6 +158,12 @@ export interface AffordabilityMath {
   months_to_save: number;
   work_hours: number;
   hourly_rate: number;
+  /** What still has to be found after spendable savings. 0 when payable today. */
+  shortfall: number;
+  /** `monthly_capacity` spread over an average week. The amount the plan asks for. */
+  weekly_capacity: number;
+  /** Whole weeks of `weekly_capacity` to cover the shortfall, rounded up. */
+  weeks_to_save: number;
   spendable_savings: number;
   payable_from_savings: boolean;
   breaks_emergency_fund: boolean;

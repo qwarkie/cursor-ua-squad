@@ -24,6 +24,9 @@ export const BudgetResponseSchema = z.object({
   reply: z.string(),
   currency: z.string(),
   monthly_income: z.number(),
+  // Defaulted, not required: a breakdown stored by the build before savings existed must
+  // still validate. Without the default it would land in `error` and blank the panel.
+  savings: z.number().default(0),
   slices: z.array(BudgetSliceSchema),
   spent: z.number(),
   leftover: z.number(),

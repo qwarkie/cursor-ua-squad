@@ -54,6 +54,7 @@ class BudgetReading(BaseModel):
     reply: str = Field(description="What you say back to the user. One or two sentences, plain language.")
     currency: str = Field(description="ISO 4217 code the user is talking in, e.g. 'CAD'. Guess from context; never convert.")
     monthly_income: float = Field(description="Net monthly income if the user has stated it, otherwise 0.")
+    savings: float = Field(description="Cash the user says they have saved right now, otherwise 0. Not a monthly amount.")
     category_names: list[str] = Field(description="Short expense labels, e.g. 'Rent', 'Groceries'. Empty if none given yet.")
     category_amounts: list[float] = Field(description="Monthly amount per category, same order and length as category_names.")
     needs_more: bool = Field(description="True while income or expenses are still missing.")
@@ -70,6 +71,7 @@ class BudgetResponse(BaseModel):
     reply: str
     currency: str
     monthly_income: float
+    savings: float = Field(description="Cash on hand, 0 when the user has not mentioned any.")
     slices: list[Slice] = Field(description="Expenses largest-first, then what is left over. At most 8, chart-ready.")
     spent: float
     leftover: float
@@ -91,6 +93,9 @@ SYSTEM = (
     "in your reply that you did.\n"
     "- Keep category labels short and reusable: Rent, Groceries, Transport, Utilities, "
     "Subscriptions, Eating out, Debt, Savings.\n"
+    "- `savings` is cash already put aside, not a monthly transfer. A monthly amount the user "
+    "sets aside belongs in the categories as 'Savings'. Once you have income and a few costs, "
+    "ask once whether they have anything saved up, because that changes what they can buy today.\n"
     "- Merge duplicates. If the user mentions groceries twice, that is one category.\n"
     "- Do no arithmetic. Do not total the expenses, do not work out what is left, do not "
     "compute percentages. That is done for you, and quoting your own version would "
@@ -145,6 +150,7 @@ def build(reading: BudgetReading) -> BudgetResponse:
         reply=reading.reply,
         currency=(reading.currency or "USD").upper()[:3],
         monthly_income=round(income, 2),
+        savings=round(max(0.0, reading.savings), 2),
         slices=slices,
         spent=round(spent, 2),
         leftover=round(leftover, 2),

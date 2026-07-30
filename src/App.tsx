@@ -1,13 +1,16 @@
-// Two columns on a desktop, one on a phone: the assistant on the left, what it worked out on
-// the right. State lives here; the panels are presentational and take it as props.
+// One column at every width: the assistant on top, what it worked out underneath. A single
+// column is why nothing needs aligning — the figures row and the split share the container's
+// edges by construction, instead of a 3-up grid trying to line up with a fixed sidebar.
+// State lives here; the panels are presentational and take it as props.
 //
 // The transcript and the last breakdown are persisted, so a reload or a phone locking itself
 // mid-conversation does not throw the answers away.
 
 import { Wallet01 } from '@untitledui/icons';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { BreakdownEmpty, FiguresRow, SplitCard } from '@/components/app/BreakdownPanel';
 import { ChatPanel } from '@/components/app/ChatPanel';
+import { ScanPanel } from '@/components/app/ScanPanel';
 import { STORAGE_KEYS, StoredBudgetSchema, TranscriptSchema } from '@/lib/records';
 import { StorageNotice } from '@/lib/store/StorageNotice';
 import { useLocal } from '@/lib/store/useLocal';
@@ -34,6 +37,22 @@ export default function App() {
   const turns = transcript.state.status === 'loading' ? [] : transcript.state.value;
   const current = breakdown.state.status === 'loading' ? null : breakdown.state.value;
 
+  // The answer lands below the fold, so the page has to take the user there. Counting fresh
+  // answers rather than watching `current` is deliberate: `current` is also populated by the
+  // restore from localStorage, and scrolling on load would drag a returning user past the
+  // conversation they came back to read.
+  const results = useRef<HTMLElement>(null);
+  const [answers, setAnswers] = useState(0);
+
+  useEffect(() => {
+    if (answers === 0) return;
+    const node = results.current;
+    if (!node) return;
+    // Honour the OS setting: a smooth scroll is motion, and some people get sick from it.
+    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    node.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' });
+  }, [answers]);
+
   const send = useCallback(
     async (text: string) => {
       const trimmed = text.trim();
@@ -49,6 +68,7 @@ export default function App() {
 
       transcript.set([...next, { role: 'assistant', content: committed.data.reply }]);
       breakdown.set(committed.data);
+      setAnswers((n) => n + 1); // drives the scroll effect above
     },
     [breakdown, run, transcript, turns],
   );
@@ -57,11 +77,15 @@ export default function App() {
     transcript.remove();
     breakdown.remove();
     setDraft('');
+    // Otherwise the next answer's count is unchanged and the effect does not re-fire.
+    setAnswers(0);
   }, [breakdown, transcript]);
 
   return (
     <main className="p-safe min-h-dvh bg-secondary text-primary">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6 lg:py-12">
+      {/* max-w-3xl, not 6xl: one column of chat and cards reads badly at 1152px, and the
+          figures stay wide enough for three across (232px each) without wrapping a label. */}
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8 sm:px-6 lg:py-12">
         <header className="flex items-center gap-3">
           <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand-solid text-primary_on-brand">
             <Wallet01 className="size-4.5" />
@@ -76,26 +100,40 @@ export default function App() {
 
         <StorageNotice state={transcript.state} onDiscard={transcript.remove} onRetry={transcript.reload} />
 
-        {/* The figures get the full width: three of them wrap their own labels inside a
-            sidebar, and they are the thing the user came to read. */}
-        {current && <FiguresRow data={current} />}
+        <ChatPanel
+          turns={turns}
+          transcriptState={transcript.state}
+          request={state}
+          draft={draft}
+          onDraftChange={setDraft}
+          onSend={(text) => void send(text)}
+          onRetry={() => void retry()}
+          onReset={reset}
+        />
 
-        <div className="grid min-h-0 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-          <ChatPanel
-            turns={turns}
-            transcriptState={transcript.state}
-            request={state}
-            draft={draft}
-            onDraftChange={setDraft}
-            onSend={(text) => void send(text)}
-            onRetry={() => void retry()}
-            onReset={reset}
-          />
+        {/* scroll-mt clears the gap the effect above would otherwise scroll flush against. */}
+        <section ref={results} aria-label="Breakdown" className="flex scroll-mt-6 flex-col gap-3">
+          {current ? (
+            <>
+              <FiguresRow data={current} />
+              <SplitCard data={current} />
+            </>
+          ) : (
+            <BreakdownEmpty />
+          )}
+        </section>
 
-          <aside aria-label="Breakdown" className="lg:sticky lg:top-12">
-            {current ? <SplitCard data={current} /> : <BreakdownEmpty />}
-          </aside>
-        </div>
+        {/* Gated on a budget, and not with a disabled button: without an income and costs
+            there is no spare money to measure a price against, so the panel would have to
+            invent a denominator. The chat above is the prerequisite, so it says that. */}
+        {current && current.monthly_income > 0 ? (
+          <ScanPanel budget={current} />
+        ) : (
+          <p className="rounded-2xl border border-dashed border-secondary px-5 py-6 text-sm text-tertiary">
+            Photographing a thing to see whether you can afford it needs an income and at least
+            one cost first. Tell the assistant above, then this turns into a camera.
+          </p>
+        )}
       </div>
     </main>
   );

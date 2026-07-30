@@ -29,6 +29,8 @@ class ImpossibleBudget(LLMError):
 
 # Hours in an average working month: 40 h/week x 52 weeks / 12 months.
 HOURS_PER_MONTH = 173.33
+# 52 weeks / 12 months. Used to turn a monthly saving rate into a weekly one.
+WEEKS_PER_MONTH = 52 / 12
 
 Verdict = Literal["easy", "affordable", "stretch", "plan_it", "out_of_reach"]
 
@@ -75,6 +77,12 @@ class Math(BaseModel):
     months_to_save: float = Field(description="Months of monthly_capacity needed, after spendable savings.")
     work_hours: float = Field(description="Hours of work this price costs at the implied hourly rate.")
     hourly_rate: float
+    # The saving plan itself, computed rather than phrased. A model handed only the monthly
+    # capacity reliably tells the user to set aside the capacity instead of the shortfall,
+    # which reads as "put away 522 until you reach 329".
+    shortfall: float = Field(description="What still has to be found after spendable savings. 0 when payable today.")
+    weekly_capacity: float = Field(description="monthly_capacity spread over an average week.")
+    weeks_to_save: float = Field(description="Whole weeks of weekly_capacity to cover the shortfall.")
     spendable_savings: float = Field(description="Savings above the emergency buffer.")
     payable_from_savings: bool
     breaks_emergency_fund: bool = Field(description="True if paying cash today drops below the buffer.")
@@ -103,9 +111,16 @@ class AssessResponse(BaseModel):
 
 ADVICE_SYSTEM = (
     "You are a blunt, numerate financial assistant. Every figure you need has already been "
-    "computed and is given to you — quote those numbers, never recompute or round them into a "
+    "computed and is given to you. Quote those numbers, never recompute or round them into a "
     "different number, and never invent a figure that is not in the input. No moralising about "
-    "the purchase; the user decides. If the buffer is at risk, say so in one sentence."
+    "the purchase; the user decides. If the buffer is at risk, say so in one sentence.\n\n"
+    "`action` is a saving strategy, not encouragement. The plan has already been worked out "
+    "for you: when there is a shortfall, say to put aside the weekly amount for the number of "
+    "weeks given, and name the shortfall as the target. Use those three figures and no others. "
+    "Never tell the user to set aside the monthly capacity, and never name a total larger than "
+    "the shortfall. When the item is payable today, say which pot it comes out of instead.\n\n"
+    "Write with plain punctuation: commas, periods, parentheses. Never use an em dash or an en "
+    "dash; the interface's typography does not allow them."
 )
 
 
@@ -132,6 +147,8 @@ def compute(profile: Profile, price: float) -> Math:
             verdict = band
             break
 
+    weekly = capacity / WEEKS_PER_MONTH
+
     return Math(
         verdict=verdict,
         disposable_income=round(disposable, 2),
@@ -141,6 +158,12 @@ def compute(profile: Profile, price: float) -> Math:
         months_to_save=round(shortfall / capacity, 2),
         work_hours=round(price / hourly, 1),
         hourly_rate=round(hourly, 2),
+        shortfall=round(shortfall, 2),
+        weekly_capacity=round(weekly, 2),
+        # Rounded up, without importing math: `assess` binds a local named `math`, and a
+        # module shadowed by a variable is a debugging session nobody needs. Three and a bit
+        # weeks of saving is four weeks before the money is actually there.
+        weeks_to_save=float(-(-shortfall // weekly)) if shortfall > 0 else 0.0,
         spendable_savings=round(spendable, 2),
         payable_from_savings=price <= spendable,
         breaks_emergency_fund=price > spendable and price <= profile.savings,
@@ -173,6 +196,8 @@ def assess(request: AssessRequest) -> AssessResponse:
             f"- {math.share_of_income:.1%} of one month of net income",
             f"- {math.work_hours:.1f} hours of work at {math.hourly_rate:.2f}/hour",
             f"- {math.months_to_save:.2f} months of saving at the committed rate",
+            f"- the plan: still to find {math.shortfall:.2f}, at {math.weekly_capacity:.2f} per "
+            f"week that is {math.weeks_to_save:.0f} week(s)",
             f"- payable from savings today: {math.payable_from_savings}",
             f"- paying cash today breaks the emergency buffer: {math.breaks_emergency_fund}",
             f"- verdict computed from the bands: {math.verdict}",

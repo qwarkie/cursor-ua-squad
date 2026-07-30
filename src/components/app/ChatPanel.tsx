@@ -84,7 +84,9 @@ export function ChatPanel({
         )}
       </header>
 
-      <div ref={scroller} className="flex min-h-75 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
+      {/* dvh, not vh: on iOS vh counts the area behind the toolbars, so the transcript would
+          claim more height than it can show and push the composer off-screen. */}
+      <div ref={scroller} className="flex min-h-[42dvh] flex-1 flex-col gap-3 overflow-y-auto px-4 py-4 sm:min-h-75">
         {turns.length === 0 ? (
           <div className="flex flex-1 flex-col justify-end gap-4">
             <div>
@@ -100,7 +102,9 @@ export function ChatPanel({
                   <button
                     type="button"
                     onClick={() => useSuggestion(text)}
-                    className="rounded-full border border-secondary bg-primary px-3 py-1.5 text-xs text-secondary transition hover:border-brand hover:text-brand-secondary active:scale-[0.98]"
+                    /* Taller on a phone: py-1.5 at text-xs is a 28px target, well under the
+                       44px a thumb actually hits. Unchanged on a laptop, where it is a click. */
+                    className="rounded-full border border-secondary bg-primary px-3.5 py-2.5 text-sm text-secondary transition hover:border-brand hover:text-brand-secondary active:scale-[0.98] sm:px-3 sm:py-1.5 sm:text-xs"
                   >
                     {text}
                   </button>
@@ -157,7 +161,9 @@ export function ChatPanel({
           placeholder="Type, or tap the mic"
           aria-label="Your message"
           autoComplete="off"
-          className="min-w-0 flex-1 rounded-xl border border-secondary bg-primary px-3.5 py-2.5 text-sm text-primary transition placeholder:text-placeholder focus:border-brand focus:outline-none"
+          /* text-base on a phone is load-bearing, not taste: iOS Safari zooms the whole page
+             in when a focused input is under 16px, and never zooms back out. */
+          className="min-w-0 flex-1 rounded-xl border border-secondary bg-primary px-3.5 py-2.5 text-base text-primary transition placeholder:text-placeholder focus:border-brand focus:outline-none sm:text-sm"
         />
         <MicButton onTranscript={(text) => onDraftChange(text)} disabled={pending} />
         {/* type="submit" is load-bearing: the form is what sends. */}

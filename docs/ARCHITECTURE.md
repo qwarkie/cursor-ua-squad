@@ -142,17 +142,15 @@ self-signed certificate and proxies `/api` to FastAPI, which means:
 The certificate is signed for `localhost` only, so the phone will warn once about it. That
 warning is expected and is not a sign of a broken setup.
 
-## What is deliberately absent
+## Deliberately minimal
 
 No router, no state-management library, no component library beyond the vendored
 primitives, no ORM, no tests, no CI, no container files.
 
-None of it is missing by oversight. A router for one screen, a store for three variables
-and an ORM for one table each cost more than they return at this size, and each is a
-decision better made when there is a second screen, a third variable or a second table.
-Unused surface is not neutral either: a directory nobody imports reads as dead weight, and
-a config file for a tool that was never run reads as noise.
+A router for one screen, a store for a handful of variables, and an ORM for one table 
+each cost more than they return at this scale. Unused infrastructure reads as noise and 
+obscures the actual structure.
 
-Mocks, fixtures and a demo-mode flag are absent for a stronger reason — they are not a
-deferred decision but a lie the code tells. This app fails loudly and names the cause
-instead, which is the only version of it that stays true under a question.
+Mocks, fixtures, and demo-mode flags are absent by design: this app fails loudly and names 
+the specific cause, so the behavior stays honest under scrutiny. That's the only version 
+that survives a user asking "wait, why did it say that?"

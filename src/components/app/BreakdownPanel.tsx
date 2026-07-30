@@ -1,11 +1,11 @@
-// What the month actually looks like, in two pieces the page places separately: the three
-// figures across the full width, and the split beside the conversation.
+// What the month actually looks like, in two pieces the page stacks under the conversation:
+// the three figures, then the split itself.
 //
 // Every number here was computed by the backend from the user's own inputs. Nothing on this
 // panel is model output, which is the claim the footnote makes explicit.
 //
 // StatGroup from the chart module is deliberately not used: it lays out 2 then 4 columns, so
-// three figures leave a dead fourth cell and wrap their labels inside a sidebar width.
+// three figures would leave a dead fourth cell on a laptop.
 
 import { PieChart01 } from '@untitledui/icons';
 import { PieChart, Stat } from '@/lib/dataviz';
@@ -20,13 +20,17 @@ function formatter(currency: string) {
   }
 }
 
-/** The headline figures. Full page width, so nothing wraps and the numbers stay readable. */
+/**
+ * The headline figures. Two across on a phone rather than three stacked: at 430px a stacked
+ * column pushes the split a screen and a half down, and three across squeezes each tile to
+ * ~125px, where "54% of take home" wraps to three lines. The odd one out spans both cells.
+ */
 export function FiguresRow({ data }: { data: BudgetResponse }) {
   const money = formatter(data.currency);
   const committedShare = data.monthly_income > 0 ? Math.round((data.spent / data.monthly_income) * 100) : 0;
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
       <Stat label="Take home" value={money.format(data.monthly_income)} footnote="every month" />
       <Stat
         label="Committed"
@@ -34,6 +38,7 @@ export function FiguresRow({ data }: { data: BudgetResponse }) {
         footnote={data.monthly_income > 0 ? `${committedShare}% of take home` : 'income not given yet'}
       />
       <Stat
+        className="col-span-2 sm:col-span-1"
         label={data.overspent ? 'Short by' : 'Left over'}
         value={money.format(Math.abs(data.leftover))}
         footnote={
@@ -46,7 +51,7 @@ export function FiguresRow({ data }: { data: BudgetResponse }) {
   );
 }
 
-/** The split itself, sized for the sidebar column. */
+/** The split itself, full column width under the figures. */
 export function SplitCard({ data }: { data: BudgetResponse }) {
   const money = formatter(data.currency);
   const rows = data.slices.map((slice) => ({ name: slice.name, amount: slice.amount }));

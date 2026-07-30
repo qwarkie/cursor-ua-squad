@@ -1,31 +1,27 @@
-# "Worth It" — 3-way parallel implementation plan
+# Implementation plan — 3-way parallel build
 
 ## Context
 
-Hackathon build, ~2hr window, AI-judged on 6 passes (repo structure, code quality,
-innovation, visual UX, pool comparison, synthesis). The scaffold is already further along
-than a fresh-start plan would assume: `backend/affordability.py`, `vision_router.py`,
-`search_router.py`, `store_router.py` are wired and working; `src/lib/camera`, `src/lib/vision`,
-`src/lib/dataviz`, `src/lib/store`, `src/lib/search`, `src/lib/ui-states` are all built,
-typechecked, unmounted. `src/App.tsx` is still just the health-check screen. The one real
-architectural gap is: `Profile` (income/expenses/savings) is manually-typed today, but real
-CSV data (220 workers, 3 months of daily earnings, bills, EWA advances, weekly cashflow) exists
-to derive it instead. That's the single new backend endpoint everything else hangs off.
+Hackathon scope (~2hr window). The scaffold is further along than a green-field start:
+`backend/affordability.py`, `vision_router.py`, `search_router.py`, `store_router.py` are 
+wired and working. Frontend modules (`camera`, `vision`, `dataviz`, `store`, `search`, `ui-states`) 
+are built and typechecked. `src/App.tsx` currently shows only the health-check screen.
 
-**Already done (this session, before this plan), do not re-do:**
-- `engine/engine.py`'s `DATA_DIR` bug fixed — `hackaton_data/` renamed to `data/` (`git mv`),
-  verified with `python3 engine.py weather --worker W-0001` → real JSON.
-- `make install` run — `node_modules/` and `backend/.venv/` exist.
-- `backend/.env` copied from `.env.example` — **still needs a real `ANTHROPIC_API_KEY`
-  pasted in before `/api/health` will return `200`.** This is a 1-person, 30-second task,
-  not part of the 3-way split below — whoever has the key should do it first.
-- `engine/precomputed/*.json` regenerated for all 220 workers (`python3 engine.py build --all`).
-  Confirmed: W-0001 = `partly_cloudy`, W-0003 = `sunny`, W-0159 = deficit (`rainy`), matching
-  the hand-off's picks for the 3 hardcoded demo workers.
+**The critical path:** wire real worker data (CSV-derived profiles) into the affordability 
+pipeline and connect the camera → vision → verdict flow on the frontend. Two bonus surfaces 
+(weather badge, EWA fee stat) read from the same endpoint, no extra backend calls.
 
-**Goal of this plan:** split the remaining critical path three ways so all three people can
-work concurrently with minimal file collisions, using a **contract-first, stub-then-swap**
-pattern so frontend work never blocks on the backend endpoint finishing first.
+**Setup done (do not re-do):**
+- Dependencies installed: `node_modules/` and `backend/.venv/` exist.
+- Data directory: `engine/engine.py` points to `data/` (correct).
+- `backend/.env` copied from `.env.example`.
+  - **Still needed:** paste a real `ANTHROPIC_API_KEY` for `/api/health` to return `200`.
+- Precomputed worker data: `engine/precomputed/*.json` regenerated for all 220 workers.
+  - Demo workers verified: W-0001 (partly_cloudy), W-0003 (sunny), W-0159 (rainy/deficit).
+
+**How this works:** three parallel workstreams, split by data flow. A shared contract 
+(types added to `contract.ts`) means Dev B and C can stub backend data immediately, 
+so no one waits on Dev A's endpoint finishing first.
 
 ---
 

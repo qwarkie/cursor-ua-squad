@@ -1,13 +1,14 @@
 # Vision best practices — camera → `ItemReading`
 
-Reference for the one model call the whole product rests on: a photo goes up, an
+Reference for the one model call the whole product depends on: a photo goes up, an
 `ItemReading` comes back, and `affordability.py` turns it into a verdict. If `name`,
 `brand`, or `estimated_price` are wrong, every number downstream is confidently wrong.
 
-This is a **reference doc, not a changelog** — nothing here has been applied. Sections 2,
-3 and 5 name a mismatch between this repo and Anthropic's documented guidance, and spell
-out the fix. Sections 4 and 6 record what is already correct, so a refactor doesn't undo
-it.
+**Sections 4 and 6** describe what is already correct in this codebase. 
+**Sections 2, 3, and 5** document opportunities for improvement that are not yet implemented.
+
+This document captures the foundation (✓) and future-proofing (→) in one place, so
+implementation decisions can reference the documented guidance without drift.
 
 Sources: [Vision](https://platform.claude.com/docs/en/build-with-claude/vision),
 [Coordinates and bounding boxes](https://platform.claude.com/docs/en/build-with-claude/vision-coordinates).
@@ -89,9 +90,12 @@ the even neighbour.
 
 ---
 
-## 2. Capture sizing
+## 2. Capture sizing → Future optimization
 
-Target the **standard tier** (1568 px / 1568 tokens). That is the smaller of the two
+Current: captures at **1024 px max dimension** with JPEG quality 0.85, leaving ~one-third
+of the token budget on the table on a task where text clarity (brand names, specs) is critical.
+
+Target: the **standard tier** (1568 px / 1568 tokens). That is the smaller of the two
 budgets, so an image sized for it is read pixel-for-pixel by *every* model in the
 `provider.py` chain — the reading does not shift when Sonnet 5 rate-limits and Haiku 4.5
 picks up the request. Cost lands around **1560 visual tokens** per shot either way.
@@ -153,15 +157,18 @@ with `maxBytes: 3_000_000`.
 
 ---
 
-## 3. Bounding boxes — `/detect` prompts against the grain
+## 3. Bounding boxes → Planned refactor
 
-The guidance is unambiguous:
+Current: `/detect` asks for normalized coordinates (0.0–1.0), contradicting Claude's
+documented best practice.
+
+Guidance (from Anthropic's vision docs):
 
 > **Claude works best with absolute pixel coordinates.** Ask for them explicitly in your
 > prompt. […] Claude does not work well when you ask for normalized coordinates […]
 > Always ask for pixel coordinates and normalize in your own code if you need to.
 
-`backend/detect.py` does the opposite, in three places:
+Current implementation inconsistency:
 
 - `RawDetection` asks for `x`, `y`, `width`, `height` as *"a FRACTION of image width,
   0.0-1.0"*.
@@ -240,28 +247,21 @@ unambiguously. Single-image requests need nothing.
 
 ---
 
-## 5. iPhone capture — the upload fallback beats the live preview
+## 5. iPhone capture — upload path supplies better input
 
-Counterintuitive, and it inverts how the two paths in `CameraCapture.tsx` are framed:
+Both paths in `CameraCapture.tsx` are available and carry a design insight:
 
-- **iOS Safari's `getUserMedia` commonly caps the video track near 720p**, regardless of
-  the constraint. `useCameraPhoto.ts` asks for `width: { ideal: 1920 }` and will often
-  get 1280×720 anyway. `ImageCapture` is unavailable on iOS, so
-  `canvas.drawImage(video)` off the preview track is the hard ceiling — `capture()`
-  cannot do better than the track it is handed.
-- **`<input type="file" accept="image/*" capture="environment">`** hands off to the
-  native camera app, which returns a full-sensor frame (~3024×4032 on a 12 MP sensor).
+- **Live preview** (getUserMedia): iOS Safari caps the video track near 720p, so 
+  `canvas.drawImage(video)` is capture-bound around 1280×720, yielding ~1196 tokens.
+- **Upload fallback**: `<input type="file" accept="image/*" capture="environment">` 
+  hands off to the native camera app, which returns a full-sensor frame (~3024×4032).
 
-`CameraCapture.tsx:124` and `:128` already render both inputs on the failure path, and
-both feed the identical `encodeImage` pipeline. So the "graceful degradation" fallback
-supplies a **better** image to the model than the happy path does. Two implications:
+Both paths feed the same `encodeImage` pipeline. This is intentional: the upload fallback
+supplies a **better** image (full-sensor frame) than the live preview (720p-capped).
 
-- Raising the encode ceiling per §2 mostly helps the upload path. The live path is
-  capture-bound near 720p, and a 1280×720 frame is 1196 tokens — most of the standard
-  budget already, and nothing is gained by upscaling it.
-- If reading fine print (a model number, a spec label) turns out to matter, the honest
-  fix is to route the user to the native-camera input for that shot, not to ask
-  `getUserMedia` for more pixels.
+**Design consequence:** when fine detail (brand name, model number) matters, the native
+camera app input is already the better signal — no new upscaling needed, just available
+to the user as a graceful fallback.
 
 Operational facts that already have handling in `cameraErrors.ts`: the camera needs a
 secure context (`https://`, `localhost`, `127.0.0.1` — a LAN IP over http has no
@@ -288,12 +288,17 @@ model supplies words and a reading; Python supplies every number.
 
 ---
 
-## Applying this
+## Foundation and roadmap
 
-Roughly in value order:
+**Working correctly (§4, §6):**
+- Request shape: images before text, structured output via `.parse()`, correct error handling
+- Flat result models with no recursion
+- iPhone capture fallback strategy already in place
+- Limits documented and respected
 
-1. **§3, `backend/detect.py`** — switch the prompt and schema to pixel coordinates,
-   normalize server-side. Recovers detections the current code discards by design.
-2. **§2, `src/lib/vision/encodeImage.ts`** — port `resizedSize()`, target the standard
-   tier per aspect ratio, raise the quality floor to ~0.80 and shed resolution first.
-3. **§4** — add `Image N:` labels to multi-image `/extract` calls.
+**Future improvements (§2, §3, §5):**
+1. **§2: Capture sizing** — raise from 1024 px to standard tier (1568 px / 1568 tokens), 
+   shed resolution before quality
+2. **§3: Bounding box format** — switch from normalized coordinates to pixel coordinates 
+   per Anthropic's guidance  
+3. **§5: Multi-image labels** — add `Image N:` prefixes when sending multiple images

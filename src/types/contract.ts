@@ -27,6 +27,52 @@ export interface HealthResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Chat -> budget breakdown          backend/budget.py
+// ---------------------------------------------------------------------------
+
+/** One turn of the conversation. The client owns the transcript; the backend is stateless. */
+export interface BudgetTurn {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+/** POST /api/budget/breakdown - the whole conversation so far. */
+export interface BudgetRequest {
+  messages: BudgetTurn[];
+}
+
+/** One arc of the salary chart. `share` is a fraction of income, 0 while income is unknown. */
+export interface BudgetSlice {
+  name: string;
+  amount: number;
+  share: number;
+}
+
+/**
+ * POST /api/budget/breakdown - what the server returns.
+ *
+ * The model supplies `reply`, `currency`, `monthly_income` and the raw category pairs.
+ * Everything else is computed in Python: totals, shares, the tail grouped into "Other",
+ * and the trailing "Left over" arc. At most 8 slices, which is the chart palette's size.
+ */
+export interface BudgetResponse {
+  reply: string;
+  currency: string;
+  monthly_income: number;
+  slices: BudgetSlice[];
+  spent: number;
+  leftover: number;
+  leftover_share: number;
+  /** Stated expenses exceed stated income. There is no "Left over" arc in that case. */
+  overspent: boolean;
+  /** Income or expenses still missing — the assistant is mid-conversation. */
+  needs_more: boolean;
+  missing: string[];
+  /** Which model in the fallback chain answered. */
+  model: string;
+}
+
+// ---------------------------------------------------------------------------
 // Capture -> Intelligence
 // ---------------------------------------------------------------------------
 

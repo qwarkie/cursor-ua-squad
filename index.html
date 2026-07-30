@@ -3,8 +3,15 @@
   The single HTML entry point. viewport-fit=cover lets the app paint under the iPhone
   notch and home indicator; the safe-area utilities in src/index.css keep content clear.
   Change: the <title>, and nothing else - UI lives in src/.
+
+  class="dark-mode" is what actually turns the theme dark: theme.css defines the light
+  tokens in @theme and re-declares every one of them under .dark-mode. It belongs on
+  <html>, not <body> - ui-bridge.css reads the tokens through :root, which IS <html>, so
+  on <body> the ui-states panels would stay light while the rest of the app went dark.
+  The color-scheme and theme-color metas below only tell the browser to paint its own
+  chrome (scrollbars, form controls, iOS status bar) to match; they style nothing in src/.
 -->
-<html lang="en">
+<html lang="en" class="dark-mode">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />

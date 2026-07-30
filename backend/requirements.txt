@@ -19,3 +19,8 @@ openai>=1.60.0,<2.0.0
 # ground.py rides on kit/backend-llm, whose requirements-llm.txt you have already appended.
 
 httpx>=0.27,<1.0
+
+# --- voice input: voice.py ------------------------------------------------
+# python-multipart is imported by UploadFile at import time, not per request, so a
+# missing one breaks the whole app at boot rather than just the transcribe route.
+python-multipart>=0.0.9,<1.0

@@ -17,10 +17,12 @@ from settings import BACKEND_DIR, ENV_FILE, LAN_ORIGIN_REGEX, get_settings
 settings = get_settings()
 
 from affordability import affordability_router  # noqa: E402  (must follow settings)
+from budget import budget_router  # noqa: E402
 from errors import register_error_handlers  # noqa: E402
 from search_router import search_router  # noqa: E402
 from store_router import router as store_router  # noqa: E402
 from vision_router import vision_router  # noqa: E402
+from voice import voice_router  # noqa: E402
 
 app = FastAPI(title="Worth It backend", version="0.1.0")
 
@@ -39,6 +41,8 @@ app.add_middleware(
 # collapses into a bodyless 500 and the frontend cannot tell them apart.
 register_error_handlers(app)
 
+app.include_router(budget_router)         # /api/budget/breakdown — chat in, chartable budget out
+app.include_router(voice_router)          # /api/voice/transcribe, /status — Groq Whisper
 app.include_router(vision_router)         # /api/vision/extract, /detect, /schemas
 app.include_router(affordability_router)  # /api/affordability/assess
 app.include_router(search_router)         # /api/search, /api/search/ground

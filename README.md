@@ -1,5 +1,7 @@
 # fintech-helper
 
+![fintech-helper](./cover.png)
+
 Point a phone camera at an object in a shop and find out what buying it would cost
 **you** — not its price tag, but its price measured against your own income: the share of
 one month's disposable money, the hours of work behind it, the months of saving it adds.

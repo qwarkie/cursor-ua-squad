@@ -6,8 +6,9 @@
     },
     "backend": {
       "root": "backend",
-      "framework": "fastapi",
-      "entrypoint": "main.py"
+      "functions": {
+        "main.py": {}
+      }
     }
   },
   "rewrites": [

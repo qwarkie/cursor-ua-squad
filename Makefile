@@ -1,5 +1,5 @@
 # Every entry point for this project. `make` alone lists them.
-# `make dev` is the only one you need during the hackathon; the rest are escape hatches.
+# `make dev` is the only one you need day to day; the rest are escape hatches.
 # The Vite app is at the repo root, so WEB_DIR is `.` — change it only if you move it.
 
 WEB_DIR := .

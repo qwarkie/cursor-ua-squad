@@ -39,3 +39,5 @@ certs/
 !.vscode/extensions.json
 *.swp
 backend/data/
+.vercel
+.env*

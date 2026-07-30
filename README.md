@@ -1,5 +1,7 @@
 # fintech-helper
 
+![fintech-helper](./cover.png)
+
 Tell it what you earn and what it goes on, then point a phone camera at something in a
 shop. It answers what that thing costs **you**: the share of your spare money, the hours of
 work behind it, and how many weeks of saving it adds.
